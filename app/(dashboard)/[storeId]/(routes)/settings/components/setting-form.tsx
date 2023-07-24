@@ -1,4 +1,5 @@
 "use client";
+
 import { useState } from "react";
 
 import * as z from "zod";
@@ -20,6 +21,12 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { toast } from "react-hot-toast";
+import axios from "axios";
+import { useParams, useRouter } from "next/navigation";
+import AlertModal from "@/components/modals/alert-modal";
+import { ApiAlert } from "@/components/ui/api-alert";
+import { useOrigin } from "@/hooks/use-origin";
 
 interface SettingsFormProps {
   initialStoreData: Store;
@@ -37,18 +44,59 @@ const SettingsForm: React.FC<SettingsFormProps> = ({ initialStoreData }) => {
     defaultValues: initialStoreData,
   });
 
+  const router = useRouter();
+  const params = useParams();
+
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const origin = useOrigin();
+
   const onSubmit = async (data: SettingFormValues) => {
-    console.log(data);
+    try {
+      setLoading(true);
+      await axios.patch(`/api/stores/${params.storeId}`, data);
+      router.refresh();
+      toast.success("Store Updated");
+    } catch (error) {
+      toast.error("Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onDelete = async () => {
+    try {
+      setLoading(true);
+      await axios.delete(`/api/stores/${params.storeId}`);
+      router.refresh();
+      toast.success("Store Deleted");
+      setOpen(false);
+    } catch (error) {
+      toast.error(
+        "Opearation failed: Make sure you delete all the products and orders"
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <>
+      <AlertModal
+        isOpen={open}
+        loading={loading}
+        onConfirm={onDelete}
+        onClose={() => setOpen(false)}
+      />
       <div className="flex justify-between items-center">
         <Heading title="Settings" description="Manage Store Preferences" />
-        <Button variant="destructive" size="icon" onClick={() => { }}>
+        <Button
+          disabled={loading}
+          variant="destructive"
+          size="icon"
+          onClick={() => setOpen(true)}
+        >
           <Trash className="w-4 h-4" />
         </Button>
       </div>
@@ -83,6 +131,14 @@ const SettingsForm: React.FC<SettingsFormProps> = ({ initialStoreData }) => {
           </Button>
         </form>
       </Form>
+
+      <Separator />
+
+      <ApiAlert
+        title="NEXT_PUBLIC_API_URL"
+        description={`${origin}/api/${params.storeId}`}
+        variant="public"
+      />
     </>
   );
 };
